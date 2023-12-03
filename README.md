@@ -8,7 +8,7 @@ The workflow of NetClass is shown in the following Figure: (Details about this m
 - Prerequisites: NetClass is developed under R (*version >= 3.6.1*).
 - Latest version: The latest developmental version of NetClass can be downloaded from GitHub and installed from source by `devtools::install_github('YihuaWWW/NetClass1.0')`
 ## Manual
-Please see (https://yihuaWWW.github.io/NetClass/vignettes/doc/Tutorial.html) for details. In the R terminal, please use the command `?NetClass` to access the help documents.
+Please see (https://github.com/YihuaWWW/NetClass1.0/tree/master/vignettes/doc/Tutorial.html) for details. In the R terminal, please use the command `?NetClass` to access the help documents.
 
 ## Data Requirements
 Two types of data are needed to run the NetClass:
