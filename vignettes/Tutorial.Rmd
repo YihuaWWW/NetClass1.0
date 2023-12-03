@@ -1,0 +1,136 @@
+---
+title: "NetClass Tutorial"
+output: 
+  html_document:
+  df_print: paged
+  toc: yes
+
+vignette: >
+  %\VignetteIndexEntry{NetClass Tutorial}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+  
+# Introduction
+  
+  This NetClass R package contains the proposed NetClass algorithm (function `NetClass`), which is a novel microbial network classification framework to classify the key subnetwork and identify central microbes at any body site using a random walk algorithm and rank-sum ratio-entropy weight evaluation model. The advantages of NetClass can be briefly summarized as follows: First, NetClass can classify unique subgroups for each location while also exploring the network's characteristic microbes and their intermicrobial relationships. Second, NetClass does not require control samples and is able to directly analyze microbial features based on microbial abundance and interactions in the ecological niche. Finally, NetClass is encapsulated into a network analysis software package, aiming to provide a novel network analysis solution for microbiome studies.
+```{r setup}
+library(NetClass)
+```
+
+
+# NetClass examples
+
+There are two data sources of NetClass inputs: a microbes relative abundance matrix, a bipartite network made of correspondence reactions of species(or genus) towards phylum
+
+## Apply NetClass with microbial interaction network construction, network partition, evaluation and scoring
+
+In our first example, we use the species data of tongue coating (T) of 21 volunteers.
+
+### Prepare the microbes abundance data
+
+We load species relative abundance matrix of T:
+```{r}
+data("community")
+community<-community
+```
+
+In this T species relative abundance data, each row represents a species and each column represents a sample. The dimensions of the T species relative abundance matrix are:
+```{r}
+dim(community)
+```
+
+which indicates there are 420 species and 22 samples in total.
+
+### Prepare the "species-phylum" data
+We load a bipartite network made of correspondence reactions of species towards phylum:
+```{r}
+data("phylum")
+phylum<-phylum
+```
+
+which indicates the phylum corresponding to species.
+
+### Execute `comm` to construct interaction network and partition network into subnetworks
+User can tune the parameters in the function `comm` to construct interaction network and partition network into subnetworks. There are two parameters `algorithm` and `nsub`. 
+`algorithm` is community partitioning algorithm, default is "walktrap". Other optional parameters are "clusters", "edge.betweenness", "label.propagation", "leading.eigenvector", "fastgreedy" or "multilevel".
+`nsub` is the number of candidate subnetworks. Default is 9.
+```{r}
+comm(community, phylum, algorithm = "walktrap", nsub = 9)
+```
+
+Here, we choose default parameters. By this function, we can get `"corr_net.pdf"`, `"corrnet_character.csv"`, `"class_subnetwork.csv"`, `"size_tax_subnetwork.csv"`, `"netclass_allsubnet.pdf"`, `"subnet_character.csv"` in the folder "data_test".
+`corr_net.pdf` is correlation network visualization results.
+`corrnet_character.csv` is correlation network topological properties table.
+`class_subnetwork.csv` is the result of community partition.
+`size_tax_subnetwork.csv` is the size of the subnetworks.
+`netclass_allsubnet.pdf`is community partition visualization results.
+`subnet_character.csv` is candidate subnetworks topological properties table.
+
+### Execute `netscore` to evaluate and score of microbial sub-networks
+#### Prepare input data
+We load subnetworks topological property indicators matrix:
+```{r}
+data(df1_net)
+df1_net<-df1_net
+```
+`df1_net` is the network topological property indicators of subnetworks by gaining `subnet_character.csv`
+
+#### Execute `NetScore`
+```{r}
+NetScore(df1_net)
+```
+The function `NetScore` is used to achieve integrated rank-sum ratio–entropy weight (RSR-EWM) evaluation model of networks. By `NetScore`, we can get weighted rank-sum ratio (WRSR) of selected subnetworks topological property indicators and their rank level `"subnetworks_score.csv"` in the folder "data_test".
+
+Based on the scores derived from the RSR-EWM model, the top-scoring subnetworks are selected. Users can select subnetworks for further analysis based on the RSR-EWM scoring results and actual research situation.
+
+Here, we chose the subnetworks `"22"`, `"31"`, `"2"` in RSR-EWM rated "level 1". Subnetworks 22 and 31 are regular graphs, in which all nodes have the same degree, and each node has the same five topological properties, so we use the evaluation model to evaluate only the combined scores of these five topological properties for all nodes in subnetwork 2. 
+
+### Execute `comm` to Visual subnetwork and caculate the topological properties of the nodes in the selected subnetwork.
+User need to set the same parameters `algorithm` and `nsub` as above in the function `comm`. Besides, setting the parameter `SubM` of key subnetwork ID selected according to the evaluation results of above function `NetScore`. 
+
+Here, we chose subnetwok 2 as key subnetwork of T.
+```{r}
+comm(community, phylum, algorithm = "walktrap", nsub = 9, SubM = 2)
+```
+
+This function return `"selected_subnet.pdf"` of selected subnetwork visualization results and `"nodes_character_selectedsubnet.csv"` of topological properties of the nodes in the selected subnetwork in the folder "data_test".
+
+
+### Execute `nodescore` to evaluate and score of central node microbes at Dorsal Tongue site
+#### Prepare input data
+We load nodes topological property indicators matrix:
+```{r}
+data(df1_node)
+df1_node<-df1_node
+```
+
+`df1_node` is the nodes topological property indicators of node by gaining `nodes_character_selectedsubnet.csv`
+
+#### Execute `NodeScore`
+```{r}
+NodeScore(df1_node)
+```
+
+The function `NodeScore` is used to achieve integrated rank-sum ratio–entropy weight (RSR-EWM) evaluation model of nodes. By `Netscore`, we can get weighted rank-sum ratio (WRSR) of nodes in the selected subnetwork topological property indicators and their rank level `"nodes_score.csv"` in the folder "data_test".
+
+Based on the scores derived from the RSR-EWM model, the top-scoring nodes are selected. Users can select nodes for further analysis based on the RSR-EWM scoring results and actual research situation.
+
+Here, we chose the nodes `"Treponema bryantii"`, `"Desulfovibrio piger"`, `"Maritalea myrionectae"`, and `"Flavonifractor plautii"` in RSR-EWM rated "level 1". 
+
+### Execute `comm` to Visual selected nodes in key subnetwork.
+User need to set the same parameters `algorithm`, `nsub`and 'SubM' as above in the function `comm`. Besides, setting the parameter `organism` of selected microbe in key subnetwork according to the evaluation results of above function `NodeScore`. 
+
+Here, we chose `"Treponema bryantii"` as central microbe in key subnetwork of T.
+```{r}
+comm(community, phylum, algorithm = "walktrap", nsub = 9, SubM = 2, organism = "Treponema_bryantii")
+```
+
+This function return `"centralnode_net.pdf"` of central node network visualization result in the folder "data_test".
+
+# Reference
+NetClass: A noncontrol-dependent approach for microbiome subnetwork classification and central bacterial identification
+
+Yihua Wang
+

@@ -1,0 +1,788 @@
+####################??????????????#####
+#??ȡ?????뻷??????????
+#community=read.table(file="tax_L7_new.txt", header=TRUE)
+community=read.table(file="tax_L7.txt", header=TRUE)
+
+rownames(community)=community[,1]
+community=community[,-1]
+com=t(community)
+# environment=read.table(file="meta.txt", header=TRUE)
+# rownames(environment)=environment[,1]
+# env=environment[,-1]
+# env=env[rownames(com),]
+# data=as.matrix(cbind(com, env))
+#data=com[c(169:189),]#T
+#data=com[c(148:168),]#S
+#data=com[c(1:21),]#B
+#data=com[c(22:84),]#G
+#data=com[c(22:42),]#GCE
+# #data=com[c(43:63),]#GLA
+#data=com[c(64:84),]#GUS
+#data=com[c(85:147),]#P
+data=com[c(85:105),]#PCE
+#data=com[c(106:126),]#PLA
+#data=com[c(127:147),]#PUS
+
+data<-data[,colMeans(data == 0)<1]#delete the column with all 0
+#?????????Ծ?????ɸѡp<0.05??r>0.45??????
+library(Hmisc)
+corr=rcorr(data, type="spearman")
+rcorr=corr$r #??ȡ????ϵ??
+pcorr=corr$P #??ȡ????????pֵ
+#ע??Ҫȥ???????أ??Խ????ϵ????ݣ?#rcorr=0.8
+for (i in 1:nrow(rcorr)) {
+  for (j in 1:nrow(rcorr)) {
+    if (i!=j) {
+      if (pcorr[i, j]>0.05) {
+        rcorr[i, j]=0
+      }
+    }
+    if (rcorr[i, j]>-0.8 & rcorr[i, j]<0.8) {
+      rcorr[i, j]=0
+    }
+  }
+}
+#write.csv(rcorr,file = "G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/????/T_species_rcorr.csv")
+#write.csv(rcorr,file = "G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/????/S_species_rcorr.csv")
+#write.csv(rcorr,file = "G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/????/B_species_rcorr.csv")
+#write.csv(rcorr,file = "G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/????/GCE_species_rcorr.csv")
+#write.csv(rcorr,file = "G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/????/P_species_rcorr.csv")
+
+#????????????
+library(igraph)
+g1=graph.adjacency(rcorr, mode="undirected", weighted=T, diag=F)
+g2=graph.adjacency(abs(rcorr), mode="undirected", weighted=T, diag=F)
+
+g1 <- delete.vertices(g1, names(degree(g1)[degree(g1) == 0]))
+g2 <- delete.vertices(g2, names(degree(g2)[degree(g2) == 0]))
+######plot######
+g<-g1
+vg<-data.frame("species"=names(V(g)))
+data2_sub<-data[,vg$species]
+m=length(colnames(data2_sub))
+
+size1=numeric(m)
+for (i in 1:m) {
+  size1[i]=sum(data[,i])
+}
+size1=(10000*size1)^0.25
+# size2=numeric(n)
+# for (i in 1:n) {
+#   size2[i]=sum(abs(rcorr[,m+i]))-1
+# }
+# size2=1.7*sqrt(10*size2)
+# size=c(size1, size2)
+size=size1
+#myshape=c(rep("circle", m), rep("square", n))
+myshape=rep("circle", m)
+weight=E(g)$weight
+
+phylum<-read.table("phylum_species.txt",header = T)
+vg<-data.frame("species"=names(V(g)))
+vg_phylum<-inner_join(vg,phylum,by="species")
+unique_phylum<-data.frame("phylum"=unique(vg_phylum$phylum))
+color_num = length(unique_phylum$phylum):1
+#create a color palette of the same size as the number of vertices.
+jet.colors <- colorRampPalette( rainbow( length( unique(color_num) ) ) )
+color_spectrum <- jet.colors( length( unique(color_num ) ) )
+#and over here we map the pallete to the order of values on vertices
+
+phylum_col<-data.frame("phylum"=unique(vg_phylum$phylum),"color"=color_spectrum)
+vg_color<-full_join(vg_phylum,phylum_col,by="phylum")
+V(g)$color = vg_color$color
+#plot(g,layout=layout_in_circle)
+#V(g)$label=NA
+#V(g)[degree(g)>=9]$label=V(g)[degree(g)>=9]$name
+#plot(g,layout=layout.fruchterman.reingold, vertex.size=size*2, vertex.color= V(g)$color,
+# edge.width=4*weight^2,vertex.frame.color=NA,margin= rep(0, 6),vertex.label=NA)
+pdf("G:/????F/??ǻ?ಿλ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/S_network.pdf")
+par(mar=c(0,0,0,0))
+# plot(g, vertex.size=size*10,vertex.label=V(g)$label,vertex.color= V(g2)$color,
+#      vertex.shape=myshape, edge.width=3*weight^2,margin= rep(0, 6))
+plot(g, vertex.size=size*2,vertex.label=NA,vertex.color= V(g)$color,
+     vertex.shape=myshape, edge.width=3*weight^2,margin= rep(0, 6))
+dev.off()
+
+#####
+
+######???????????ʻ???#####
+t_data<-t(data)
+t_data2<-data.frame("species"=rownames(t_data),t_data)
+rcorr_name<-data.frame("species"=rownames(rcorr))
+t_data3<-inner_join(rcorr_name,t_data2,by="species")
+rownames(t_data3)<-t_data3[,1]
+t_data3<-t_data3[,-1]
+data_rcorr<-t(t_data3)
+##??ͼ???ղ?
+#???гߴ????ŵ??ղ??????ṩһ?????գ?????ʾ???ߴ????ŵ???��
+census <- table(sapply(cliques(g2), length))
+census
+#plot(census)
+
+#k ?ˣ???Ҫ??Ȩ???磩
+#cores <- graph.coreness(g)
+#cores
+#sna::gplot.target(adjacency_unweight, cores, usearrows = FALSE, vertex.col = cores)
+
+#??Ԫ?飨dyad??????Ԫ?飨triad??
+dyad.census(simplify(g2))
+triad.census(simplify(g2))
+#?ڵ???��??number of nodes???ͱ???��??number of edges??
+nodes_num <- length(V(g2))
+nodes_num
+
+edges_num <- length(E(g2))
+edges_num
+
+#ƽ???ȣ?average degree??
+average_degree <- mean(degree(g2))
+#???ߣ?2x????��/?ڵ???��
+average_degree <- 2*edges_num/nodes_num
+average_degree
+
+#ƽ????Ȩ?ȣ?average weighted degree???????????ں?Ȩ????
+#average_weight_degree <- mean(strength(igraph))
+
+#?ڵ??ͱ?��ͨ?ȣ?connectivity??
+nodes_connectivity <- vertex.connectivity(g2)
+nodes_connectivity
+
+edges_connectivity <- edge.connectivity(g2)
+edges_connectivity
+
+#ƽ??·?????ȣ?average path length??
+average_path_length <- average.path.length(g2, directed = FALSE)
+average_path_length
+
+#????ֱ????diameter??
+graph_diameter <- diameter(g2, directed = FALSE)
+graph_diameter
+
+#ͼ?ܶȣ?density??
+graph_density <- graph.density(g2)
+graph_density
+
+#????ϵ????clustering coefficient??
+clustering_coefficient <- transitivity(g2)
+clustering_coefficient
+
+#?????????ԣ?betweenness centralization)
+betweenness_centralization <- centralization.betweenness(g2)$centralization
+betweenness_centralization
+
+#???????ԣ?degree centralization??
+degree_centralization <- centralization.degree(g2)$centralization
+degree_centralization
+
+#ģ???ԣ?modularity???????? ?cluster_fast_greedy???modularity???ж???ģ??(?Ѿ???????)
+fc <- cluster_fast_greedy(g2)
+modularity <- modularity(g2, membership(fc))
+
+#ͬ?????ϣ?assortative mixing????????
+# otu_class <- read.delim('node_attribute.txt', row.names = 1, stringsAsFactors = FALSE)
+# V(igraph)$group <- otu_class[V(igraph)$name,'group']
+# assortativity.nominal(igraph, (V(igraph)$group == 'class2')+1, directed = FALSE)
+
+#?????ԣ?reciprocity????????????????????
+#reciprocity(igraph, mode = 'default')
+#reciprocity(igraph, mode = 'ratio')
+
+#ѡ?񲿷?????????????
+igraph_character <- data.frame(
+  nodes_num,    #?ڵ???��??number of nodes??
+  edges_num,    #????��??number of edges??
+  graph_diameter,    #????ֱ????diameter??
+  graph_density,    #ͼ?ܶȣ?density??
+  average_degree,    #ƽ???ȣ?average degree)
+  nodes_connectivity,    #?ڵ?��ͨ?ȣ?vertex connectivity??
+  edges_connectivity,    #??��ͨ?ȣ?edges connectivity??
+  clustering_coefficient,    #????ϵ????clustering coefficient??
+  #betweenness_centralization,    #?????????ԣ?betweenness centralization)
+  #degree_centralization,    #????????
+  modularity,    #ģ???ԣ?modularity??
+  average_path_length    #ƽ??·?????ȣ?average path length??
+)
+
+igraph_character_T<-igraph_character
+igraph_character_S<-igraph_character
+igraph_character_B<-igraph_character
+igraph_character_GCE<-igraph_character
+igraph_character_PCE<-igraph_character
+##PCE,GCE,B,S,T
+igraph_character_all<-rbind(igraph_character_PCE,igraph_character_GCE)
+igraph_character_all<-rbind(igraph_character_all,igraph_character_B)
+igraph_character_all<-rbind(igraph_character_all,igraph_character_S)
+igraph_character_all<-rbind(igraph_character_all,igraph_character_T)
+rownames(igraph_character_all)<-c("PCE","GCE","B","S","T")
+#write.csv(igraph_character_all,file="igraph_character_all.csv")
+##???ݱ?׼??
+igraph_character_all<-as.matrix(igraph_character_all)
+igraph_character_all2<-prop.table(igraph_character_all,2)
+igraph_character_all2<-t(igraph_character_all2)
+igraph_character_all2<-igraph_character_all2[-c(7,8),]
+igraph_character_all2<-data.frame("character"=rownames(igraph_character_all2),igraph_character_all2,stringsAsFactors = FALSE, check.names = FALSE)
+
+####show igraph_character#####
+#igraph_character_all2<- read.delim('igraph_character_all2.txt', sep = '\t', stringsAsFactors = FALSE, check.names = FALSE)
+#igraph_character_order<-read.delim('igraph_character_order.txt', sep = '\t', stringsAsFactors = FALSE, check.names = FALSE)
+#igraph_character_all2$character<-factor(igraph_character_all2$character,levels = as.vector(rev(igraph_character_order$character)))
+
+igraph_character_all3<- melt(igraph_character_all2, id = 'character')
+names(igraph_character_all3)[2] <- 'sample'
+group <- read.delim('group.txt', sep = '\t', stringsAsFactors = FALSE, check.names = FALSE)
+igraph_character_all3 <- merge(igraph_character_all3, group, by = 'sample', all.x = TRUE)
+
+library(ggplot2)
+#install.packages("ggridges")
+library(ggridges)
+igraph_character_all3<-igraph_character_all3[,-1]
+
+ggplot(igraph_character_all3, aes(x = times, y = character, height = value,fill=character))  +
+  geom_ridgeline_gradient(scale = 2, color = 'white', show.legend = FALSE) +
+  labs(x = 'Time', y = 'Network Character') +
+  scale_fill_manual(values = c('#E64B35', '#4DBBD5','#00A087','#3C5488','#F39B7F','#8491B4','#91D1C2','#DC0000','#7E6148','#B09C85'),
+                    limits = c('graph_density', 'edges_num','average_degree','degree_centralization','nodes_num',
+                               'clustering_coefficient','graph_diameter','betweenness_centralization','modularity','average_path_length'))+
+  theme_ridges(font_size = 8, grid = TRUE, center_axis_labels = TRUE)+
+  scale_x_continuous(expand = c(0, 0))+
+  theme_bw()
+
+ggplot(species_top10_2, aes(x = times, y = species, height = value, fill = profile))  +
+  geom_ridgeline_gradient(scale = 30, color = 'white', show.legend = FALSE) +
+  scale_fill_manual(values = c('#FFD700', '#1C8FFF','#DB7093','#C0C0C0','#40E0D0','#FFA07A'),
+                    limits = c('profile0', 'profile10','profile19','profile21','profile37','profile8')) +
+  labs(x = 'time', y = 'species') +
+  theme_ridges(font_size = 12, grid = TRUE, center_axis_labels = TRUE) +
+  scale_x_continuous(expand = c(0, 0))
+
+
+
+
+######????��??????Ⱥ???֣???ͬ?㷨???????£?
+#?Ż??ڵ?��?ӵ???Ⱥ????
+#��???ڵ?֮????��??????Ϊͬһ????Ⱥ??????????��??û??Ӱ?죬????ʹ??clusters()????��ʵ?֣???????ʾ??
+#sub1=clusters(g1)
+#??????ȡ???????е???Ⱥ??Ա????С????Ⱥ??????Ϣ????????ʾ??
+#sub1$membership
+#sub1$csize
+#sub1$no
+#???Կ?????????��?ӵĽڵ㶼???鵽ͬһ??Ⱥ???????????????????????н???ʹ?á?
+#??????????
+#???????ߵĹ????Ǽ???һ??????????һ???????????????ߣ????Ʋ????˶?????
+#???????ߺܿ??ܱ?��??��?ӳ??ܵ?????????????????????????߷??ֵ???Ⱥ??
+#Ϊ?˶?��?????ߵ???Ϊ????i??????j???ĸ??ʶ???Ϊ???????ƶȣ???i??j??ͬһ??Ⱥ??
+#??Ȼ???ʽϸߣ????˿??Բ?ȡ???ξ????ķ?????��??Ⱥ?ṹ??
+sub2=walktrap.community(g2, weights=E(g2)$weight, step=4)
+#????weightsΪ?ߵ?Ȩ?أ????ＴΪ?????Դ?С??????Ҫ??????Ȩ???ʣ?????��???ǻ????????ģ?
+#????????ʹ??g2??stepΪ???????ߵĲ?????????Խ??????Խ?ֲڡ???????????????ʾ??
+#sub2
+#sub2_module<-data.frame("modularity"=sub2$modularity,"membership"=sub2$membership,"names"=sub2$names,
+#                        "vcount"=sub2$vcount,"algorithm"=sub2$algorithm)
+
+sg2<-data.frame("species"=sub2$names,"sg"=sub2$membership)
+subgroup=vector("list",length(unique(sub2$membership)))
+for(i in 1:length(unique(sub2$membership))){subgroup[[i]] = as.character(sg2[sg2[,2]== i, 1])}
+
+size_subgroup<-vector(mode="numeric",length=0)
+for(i in 1:length(unique(sub2$membership)))
+{
+  size_subgroup[i]<-length(subgroup[[i]])
+}
+size_subgroup2<-data.frame("subgroup"=c(1:length(unique(sub2$membership))),"size"=size_subgroup)
+size_subgroup3<-size_subgroup2[order(-size_subgroup2[,2]),]#ѡ???ڵ???????ǰ??????????
+
+write.csv(sg2,file = "G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/data_community_patition/P_species_subnetwork.csv")
+write.csv(size_subgroup3,file = "G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/data_community_patition/size_P_species_subnetwork.csv")
+
+#subgroup[[3]]#??R?????????߿???ʹ??walktrap.community()????????????ʾ??
+
+#############
+#?ǻ??ڶ??????Ե???Ⱥ?ָ?
+#?????ҳ??????й?��???????Ľڵ㣨??????????С?ĵ㣩???ж?????֮???ıߣ?
+#???Դ˷??ѷ????????????????ָ???ʵ???ʱ????ֹ???ѹ??̣??õ????ֽ?????
+#????ʹ??edge.betweenness.community()????ʵ?֣???????ʾ??
+sub3=edge.betweenness.community(g2, weight=E(g2)$weight, directed=F)
+#?˷???ͬ??Ҫ???ߵ?Ȩ?ر?????????????????????????ʾ??
+sub3
+#?ȱ?ǩ????
+#??ǩ????Ⱥ???ƣ???????˼????ÿ???ڵ???Ⱥ?????����???ǩ????????ֱ??��?ӵĽڵ??ı?ǩ??????
+#????ֱ??��?ӵĽڵ??????ĸ?Ⱥ???????࣬??ô?????ڵ????????Ǹ?Ⱥ?塣
+#???㷨ͨ?????????ɣ?????Ԥ?????????Ľڵ㣬????ʹ??label.propagation.community()???????з???????????ʾ??
+sub4=label.propagation.community(g2, weights=V(g2)$weight)
+#??????????????ʾ??
+sub4
+#???⻹??̰???㷨fastgreedy.community()??
+#?????ξ???multilevel.community()??
+#????ֵleading.eigenvector.community()??
+sub5=leading.eigenvector.community(g2, weights=V(g2)$weight)
+sub6=fastgreedy.community(g2, weights=V(g2)$weight)
+sub7=multilevel.community(g2, weights=V(g2)$weight)
+
+############??Ⱥ???ӻ???############
+
+#m=length(colnames(com))
+#n=length(colnames(env))
+data2<-data[,sg2[,1]]#????????ѡ??ָ????
+rcorr2<-rcorr[sg2[,1],sg2[,1]]
+
+m=length(colnames(data2))
+t=length(colnames(rcorr2))
+size1=numeric(m)
+for (i in 1:m) {
+  size1[i]=sum(data2[,i])
+}
+size1=(10000*size1)^0.25
+# size2=numeric(n)
+# for (i in 1:n) {
+#   size2[i]=sum(abs(rcorr[,m+i]))-1
+# }
+# size2=1.7*sqrt(10*size2)
+# size=c(size1, size2)
+size=size1
+#myshape=c(rep("circle", m), rep("square", n))
+myshape=rep("circle", m)
+weight=E(g1)$weight
+#par(mar=c(0.4,0.4,1,0.4), mfrow=c(2,2))
+# plot(sub2, g2, vertex.size=size*0.7,vertex.label=NA, vertex.shape=myshape, edge.width=3*weight^2, main="????????")
+# plot(sub3, g2, vertex.size=size*0.7,vertex.label=NA, vertex.shape=myshape, edge.width=2*weight^2, main="????????")
+# plot(sub4, g2, vertex.size=size*0.7,vertex.label=NA, vertex.shape=myshape, edge.width=2*weight^2, main="??ǩ????")
+# plot(sub5, g2, vertex.size=size*0.7,vertex.label=NA, vertex.shape=myshape, edge.width=2*weight^2, main="????ֵ")
+# plot(sub6, g2, vertex.size=size*0.7,vertex.label=NA, vertex.shape=myshape, edge.width=2*weight^2, main="̰?Ĳ???")
+# plot(sub7, g2, vertex.size=size*0.7,vertex.label=NA, vertex.shape=myshape, edge.width=2*weight^2, main="?????ξ???")
+
+# V(g2)$sg=sub2$membership
+# V(g2)$color = rainbow(max(V(g2)$sg),alpha=0.8)[V(g2)$sg]
+# plot(sub2,g2,layout=layout.fruchterman.reingold, vertex.size=1,vertex.color=V(g2)$color, edge.width=0.4,edge.arrow.size=0.08,
+#      edge.color = rgb(1,1,1,0.4),vertex.frame.color=NA,margin= rep(0, 4),vertex.label=NA)
+
+#E(g2)$color=V(g2)[name=ends(g2,E(g2))[,2]]$color   #Ϊedge????ɫ??ֵ
+#V(g2)[grep("1", V(g2)$name)]$color=rgb(1,1,1,0.8)   #Ϊvertex????ɫ??ֵ
+phylum<-read.table("phylum_species.txt",header = T)
+vg2<-data.frame("species"=names(V(g2)))
+library('dplyr')
+vg2_phylum<-inner_join(vg2,phylum,by="species")
+unique_phylum<-data.frame("phylum"=unique(vg2_phylum$phylum))
+color_num = length(unique_phylum$phylum):1
+#create a color palette of the same size as the number of vertices.
+jet.colors <- colorRampPalette( rainbow( length( unique(color_num) ) ) )
+color_spectrum <- jet.colors( length( unique(color_num ) ) )
+#and over here we map the pallete to the order of values on vertices
+
+phylum_col<-data.frame("phylum"=unique(vg2_phylum$phylum),"color"=color_spectrum)
+vg2_color<-full_join(vg2_phylum,phylum_col,by="phylum")
+vg2_color<-inner_join(sg2,vg2_color,by="species")
+V(g2)$color = vg2_color$color
+
+#Display the graph and the legend.
+pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/P_species_all.pdf")
+par(mar=c(0,0,0,0))
+plot(sub2,g2,layout=layout.fruchterman.reingold, vertex.size=1.5*size, vertex.color= vg2_color$color,
+     edge.width=4*weight^2,vertex.frame.color=NA,margin= rep(0,6),vertex.label=NA)
+dev.off()
+
+# plot(sub2, g2, vertex.size=size*0.7,vertex.label=NA,vertex.color= V(g2)$color,vertex.shape=myshape, edge.width=3*weight^2, main="????????")
+#
+# plot(sub3,g2,layout=layout.fruchterman.reingold, vertex.size=size*0.7, vertex.color= V(g2)$color,
+#      edge.width=4*weight^2,edge.color = E(g2)$color,vertex.frame.color=NA,margin= rep(0, 6),vertex.label=NA)#duzhongxinxing
+# plot(sub4,g2,layout=layout.fruchterman.reingold, vertex.size=size*0.7, vertex.color= V(g2)$color,
+#      edge.width=4*weight^2,edge.color = E(g2)$color,vertex.frame.color=NA,margin= rep(0, 6),vertex.label=NA)#"??ǩ????"
+#
+# plot(sub5,g2,layout=layout.fruchterman.reingold, vertex.size=size*0.7, vertex.color= V(g2)$color,
+#      edge.width=4*weight^2,edge.color = E(g2)$color,vertex.frame.color=NA,margin= rep(0, 6),vertex.label=NA)#"????ֵ"
+#
+# plot(sub6,g2,layout=layout.fruchterman.reingold, vertex.size=size*0.7, vertex.color= V(g2)$color,
+#      edge.width=4*weight^2,edge.color = E(g2)$color,vertex.frame.color=NA,margin= rep(0, 6),vertex.label=NA)#"̰?Ĳ???"
+#
+# plot(sub7,g2,layout=layout.fruchterman.reingold, vertex.size=size*0.7, vertex.color= V(g2)$color,
+#      edge.width=4*weight^2,edge.color = E(g2)$color,vertex.frame.color=NA,margin= rep(0, 6),vertex.label=NA)#"?????ξ???"
+
+######????????????##########
+igraph_character_all<-data.frame(matrix(,nrow=9,ncol=10))##nrow=ѡȡ???????ĸ?????ncol=ѡȡ???????ʵĸ???
+for(i in 1:9)#ѡȡ???????ĸ???
+{
+  nodes<-V(g2)[sub2$membership==size_subgroup3$subgroup[i]]#T:2,3,22,1,31,20,19,21
+  g<-induced_subgraph(g2,nodes)
+  nodes_num <- length(V(g))
+  edges_num <- length(E(g))
+  average_degree <- mean(degree(g))
+  nodes_connectivity <- vertex.connectivity(g)
+  edges_connectivity <- edge.connectivity(g)
+  average_path_length <- average.path.length(g, directed = FALSE)
+  graph_diameter <- diameter(g, directed = FALSE)
+  graph_density <- graph.density(g)
+  clustering_coefficient <- transitivity(g)
+  fc <- cluster_fast_greedy(g)
+  modularity <- modularity(g, membership(fc))
+  igraph_character <- data.frame(
+    nodes_num,    #?ڵ???��??number of nodes??
+    edges_num,    #????��??number of edges??
+    graph_diameter,    #????ֱ????diameter??
+    graph_density,    #ͼ?ܶȣ?density??
+    average_degree,    #ƽ???ȣ?average degree)
+    edges_connectivity,    #??��ͨ?ȣ?edges connectivity??
+    nodes_connectivity,    #?ڵ?��ͨ?ȣ?vertex connectivity??
+    clustering_coefficient,    #????ϵ????clustering coefficient??
+    #betweenness_centralization,    #?????????ԣ?betweenness centralization)
+    #degree_centralization,    #????????
+    modularity,    #ģ???ԣ?modularity??
+    average_path_length    #ƽ??·?????ȣ?average path length??
+  )
+  igraph_character_all[i,]<-igraph_character[1,]
+  colnames(igraph_character_all)<-colnames(igraph_character)
+}
+rownames(igraph_character_all)<-size_subgroup3$subgroup[1:9]#ѡȡ???????ĸ???
+
+write.csv(igraph_character_all,file = "G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/data_community_patition2/igraph_character_P.csv")
+##python score.py ????ѡ??????
+############??ÿ??community???Եõ???ͼ#######
+
+#nodes<-V(g2)[sub2$membership==22]#T:2,3,22,1,31,20,19,21
+#nodes<-V(g2)[sub2$membership==4]#S:2,3,4,5,6,30,33,36,38
+#nodes<-V(g2)[sub2$membership==3]#B:3,9
+#nodes<-V(g2)[sub2$membership==3]#G:2, 3
+nodes<-V(g2)[sub2$membership==1]#P:1,2
+#nodes<-V(g2)[sub2$membership==5]#GCE:1,4,5,9,17,30,45
+
+g<-induced_subgraph(g2,nodes)
+
+#t_data<-t(data)
+#t_data2<-data.frame("species"=rownames(t_data),t_data)
+vg<-data.frame("species"=names(V(g)))
+###??ÿ????λ????????????????λ???????Ĳ?????community detection?????Ľ???
+#perm<-read.table(file="perm_species_B.txt",header = T)
+#g2_perm<-inner_join(vg,perm,by="species")
+####
+
+#t_data3<-inner_join(t_data2,vg,by="species")
+#rownames(t_data3)<-t_data3[,1]
+#t_data3<-t_data3[,-1]
+#data2<-t(t_data3)
+data2_sub<-data[,vg$species]
+m=length(colnames(data2_sub))
+
+#t=length(colnames(rcorr))
+size1=numeric(m)
+for (i in 1:m) {
+  size1[i]=sum(data2[,i])
+}
+size1=(10000*size1)^0.25
+# size2=numeric(n)
+# for (i in 1:n) {
+#   size2[i]=sum(abs(rcorr[,m+i]))-1
+# }
+# size2=1.7*sqrt(10*size2)
+# size=c(size1, size2)
+size=size1
+#myshape=c(rep("circle", m), rep("square", n))
+myshape=rep("circle", m)
+weight=E(g)$weight
+
+phylum<-read.table("phylum_species.txt",header = T)
+vg<-data.frame("species"=names(V(g)))
+vg_phylum<-inner_join(vg,phylum,by="species")
+unique_phylum<-data.frame("phylum"=unique(vg_phylum$phylum))
+color_num = length(unique_phylum$phylum):1
+#create a color palette of the same size as the number of vertices.
+jet.colors <- colorRampPalette( rainbow( length( unique(color_num) ) ) )
+color_spectrum <- jet.colors( length( unique(color_num ) ) )
+#and over here we map the pallete to the order of values on vertices
+
+phylum_col<-data.frame("phylum"=unique(vg_phylum$phylum),"color"=color_spectrum)
+vg_color<-full_join(vg_phylum,phylum_col,by="phylum")
+V(g)$color = vg_color$color
+#plot(g,layout=layout_in_circle)
+#V(g)$label=NA
+#V(g)[degree(g)>=9]$label=V(g)[degree(g)>=9]$name
+#plot(g,layout=layout.fruchterman.reingold, vertex.size=size*2, vertex.color= V(g)$color,
+    # edge.width=4*weight^2,vertex.frame.color=NA,margin= rep(0, 6),vertex.label=NA)
+pdf("G:/????F/??ǻ?ಿλ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/P_species_subnetwork1-2.pdf")
+par(mar=c(0,0,0,0))
+plot(g, vertex.size=size*10,vertex.label=V(g)$label,vertex.color= V(g2)$color,
+     vertex.shape=myshape, edge.width=3*weight^2,margin= rep(0, 6),layout=layout_on_sphere)
+dev.off()
+
+
+
+##??ͼ???ղ?
+#???гߴ????ŵ??ղ??????ṩһ?????գ?????ʾ???ߴ????ŵ???��
+#census <- table(sapply(cliques(g), length))
+#census
+#plot(census)
+
+#k ?ˣ???Ҫ??Ȩ???磩
+#cores <- graph.coreness(g)
+#cores
+#sna::gplot.target(adjacency_unweight, cores, usearrows = FALSE, vertex.col = cores)
+
+#??Ԫ?飨dyad??????Ԫ?飨triad??
+#dyad.census(simplify(g))
+#triad.census(simplify(g))
+#?ڵ???��??number of nodes???ͱ???��??number of edges??
+#nodes_num <- length(V(g))
+#nodes_num
+
+#edges_num <- length(E(g))
+#edges_num
+
+#ƽ???ȣ?average degree??
+#average_degree <- mean(degree(g))
+#???ߣ?2x????��/?ڵ???��
+#average_degree <- 2*edges_num/nodes_num
+#average_degree
+
+#ƽ????Ȩ?ȣ?average weighted degree???????????ں?Ȩ????
+#average_weight_degree <- mean(strength(igraph))
+
+#?ڵ??ͱ?��ͨ?ȣ?connectivity??
+#nodes_connectivity <- vertex.connectivity(g)
+#nodes_connectivity
+
+#edges_connectivity <- edge.connectivity(g)
+#edges_connectivity
+
+#ƽ??·?????ȣ?average path length??
+#average_path_length <- average.path.length(g, directed = FALSE)
+#average_path_length
+
+#????ֱ????diameter??
+#graph_diameter <- diameter(g, directed = FALSE)
+#graph_diameter
+
+#ͼ?ܶȣ?density??
+#graph_density <- graph.density(g)
+#graph_density
+
+#????ϵ????clustering coefficient??
+#clustering_coefficient <- transitivity(g)
+#clustering_coefficient
+
+#?????????ԣ?betweenness centralization)
+#betweenness_centralization <- centralization.betweenness(g)$centralization
+#betweenness_centralization
+
+#???????ԣ?degree centralization??
+#degree_centralization <- centralization.degree(g)$centralization
+#degree_centralization
+
+#ģ???ԣ?modularity???????? ?cluster_fast_greedy???modularity???ж???ģ??(?Ѿ???????)
+#fc <- cluster_fast_greedy(g)
+#modularity <- modularity(g, membership(fc))
+
+#ͬ?????ϣ?assortative mixing????????
+# otu_class <- read.delim('node_attribute.txt', row.names = 1, stringsAsFactors = FALSE)
+# V(igraph)$group <- otu_class[V(igraph)$name,'group']
+# assortativity.nominal(igraph, (V(igraph)$group == 'class2')+1, directed = FALSE)
+
+#?????ԣ?reciprocity????????????????????
+#reciprocity(igraph, mode = 'default')
+#reciprocity(igraph, mode = 'ratio')
+
+#ѡ?񲿷?????????????
+# igraph_character <- data.frame(
+#   #nodes_num,    #?ڵ???��??number of nodes??
+#   #edges_num,    #????��??number of edges??
+#   graph_diameter,    #????ֱ????diameter??
+#   graph_density,    #ͼ?ܶȣ?density??
+#   average_path_length,    #ƽ??·?????ȣ?average path length??
+#   average_degree,    #ƽ???ȣ?average degree)
+#   edges_connectivity,    #??��ͨ?ȣ?edges connectivity??
+#   nodes_connectivity,    #?ڵ?��ͨ?ȣ?vertex connectivity??
+#   clustering_coefficient,    #????ϵ????clustering coefficient??
+#   #betweenness_centralization,    #?????????ԣ?betweenness centralization)
+#   #degree_centralization,    #????????
+#   modularity    #ģ???ԣ?modularity??
+# )
+# igraph_character
+
+#write.table(igraph_character, 'igraph_character.txt', sep = '\t', row.names = FALSE, quote = FALSE)
+###########?ڵ?????
+
+#??????????ϵ??ת??Ϊ?ߵ?Ȩ??
+#????????ϵ???и?ֵ????Ȩ????????ӦΪ??ֵ?????Զ???????ϵ???õ???Ȩ??ȡ????ֵ
+#??????һ?б????Լ?¼????ϵ??
+#nodes<-V(g2)[sub2$membership==size_subgroup3$subgroup[2]]#T:2,3,22,1,31,20,19,21
+nodes<-V(g2)[sub2$membership==1]#P:2,3,4,5,6,30,33,36,38
+g<-induced_subgraph(g2,nodes)
+
+E(g)$corr <- E(g)$weight
+E(g)$weight <- abs(E(g)$weight)
+
+##?ڵ?????
+#?ڵ???��
+#length(V(g)$name)
+#??
+#vcount(g)
+
+#?ڵ??ȣ?Degree??
+#???ڱ?ʾ???Ǹ????????磬???޳??Ⱥ?????֮??
+V(g)$degree <- degree(g)
+#V(g)$degree
+
+#?鿴?ȷֲ?
+#?ɹ۲쵽΢????????????ͨ?????????ɷֲ????????½??ٽ?????ͨ????????֤
+#degree_dist <- degree.distribution(g)[-1]
+#degree_num <- 1:max(V(g)$degree)
+
+#par(mfrow = c(1, 2))
+# hist(V(g)$degree, xlab = 'Degree', ylab = 'Frequency',
+#      main = 'Degree distribution')
+# plot(degree_num, degree_dist, log = 'xy', xlab = 'Log-degree',
+#      ylab = 'Log-intensity', main = 'Log-log degree distribution')
+
+#?鿴?ڵ??????䡰?ھӡ???ƽ???ȵĹ?ϵ
+#΢?????????и߶?ֵ?Ľڵ???????��????һ???????ձ?????????
+#neighbor_degree <- graph.knn(g, V(g))$knn
+# plot(V(g)$degree, neighbor_degree, log = 'xy',
+#      xlab = 'Log degree', ylab = 'Log average neighbor degree')
+
+#??Ȩ?ȣ?Weighted degree??
+V(g)$weight_degree <- strength(g)
+#V(g)$weight_degree
+
+#?ӽ??????ԣ?Closeness centrality??
+V(g)$closeness_centrality <- closeness(g)
+#V(g)$closeness_centrality
+
+#?????????ԣ?Betweenness centrality??
+V(g)$betweenness_centrality <- betweenness(g)
+#V(g)$betweenness_centrality
+
+#??????��?????ԣ?Eigenvector centrality??
+V(g)$eigenvector_centrality <- evcent(g)$vector
+#V(g)$eigenvector_centrality
+
+#̽???????????ڵ??????Ե??????Ĺ?ϵ
+#library(car)
+
+# scatter3d(V(g)$closeness_centrality, V(g)$betweenness_centrality, V(g)$eigenvector_centrality,
+#           xlab =  'Closeness centrality', ylab = 'Betweenness centrality', zlab = 'Eigenvector centrality',
+#           surface = FALSE)
+
+#̽???ڵ??Ⱥͽڵ??????ԵĹ?ϵ????????????��?????ԵĹ?ϵ
+# plot(V(g)$degree, V(g)$eigenvector_centrality,
+#      xlab = 'Degree', ylab = 'Eigenvector centrality')
+
+#?????б?
+node_character <- data.frame(
+  node_id = V(g)$name,
+  degree = V(g)$degree,
+  weight_degree = V(g)$weight_degree,
+  betweenness_centrality = V(g)$betweenness_centrality,
+  closeness_centrality = V(g)$closeness_centrality,
+  eigenvector_centrality = V(g)$eigenvector_centrality)
+write.csv(node_character,file="G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/data_community_patition2/node_P_species_subnetwork1.csv")
+
+
+write.csv(node_character,file="G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/data_community_patition2/node_GCF_species_subnetwork3.csv")
+
+
+write.csv(node_character,file="G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/data_community_patition2/node_B_species_subnetwork3.csv")
+
+write.csv(node_character,file="G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/data_community_patition/node_P_species_subnetwork2.csv")
+
+
+
+
+head(node_list)
+#nodes<-V(g2)[sub2$membership==2]
+#g<-induced_subgraph(g2,nodes)
+## ?鿴ĳһ??node??edge??Ϣ
+e<-E(g2)[[inc("Aquicella_siphonis")]]#T:25Treponema_bryantii;10Desulfovibrio_piger;16Maritalea_myrionectae;13Flavonifractor_plautii
+hub<-subgraph.edges(g2, e, delete.vertices = TRUE)
+
+#??ÿ??community???Եõ???ͼ
+t_data<-t(data)
+t_data2<-data.frame("species"=rownames(t_data),t_data)
+vg<-data.frame("species"=names(V(hub)))
+t_data3<-inner_join(t_data2,vg,by="species")
+rownames(t_data3)<-t_data3[,1]
+t_data3<-t_data3[,-1]
+data2<-t(t_data3)
+m=length(colnames(data2))
+
+#t=length(colnames(rcorr))
+size1=numeric(m)
+for (i in 1:m) {
+  size1[i]=sum(data2[,i])
+}
+size1=(10000*size1)^0.25
+# size2=numeric(n)
+# for (i in 1:n) {
+#   size2[i]=sum(abs(rcorr[,m+i]))-1
+# }
+# size2=1.7*sqrt(10*size2)
+# size=c(size1, size2)
+size=size1
+#myshape=c(rep("circle", m), rep("square", n))
+myshape=rep("circle", m)
+weight=E(hub)$weight
+
+phylum<-read.table("phylum_species.txt",header = T)
+vg<-data.frame("species"=names(V(hub)))
+vg_phylum<-inner_join(vg,phylum,by="species")
+unique_phylum<-data.frame("phylum"=unique(vg_phylum$phylum))
+color_num = length(unique_phylum$phylum):1
+#create a color palette of the same size as the number of vertices.
+jet.colors <- colorRampPalette( rainbow( length( unique(color_num) ) ) )
+color_spectrum <- jet.colors( length( unique(color_num ) ) )
+#and over here we map the pallete to the order of values on vertices
+
+phylum_col<-data.frame("phylum"=unique(vg_phylum$phylum),"color"=color_spectrum)
+vg_color<-full_join(vg_phylum,phylum_col,by="phylum")
+V(hub)$color = vg_color$color
+#plot(g,layout=layout_in_circle)
+#V(g)$label=NA
+#V(g)[degree(g)>=20]$label=V(g)[degree(g)>=20]$name
+#plot(g,layout=layout.fruchterman.reingold, vertex.size=size*2, vertex.color= V(g)$color,
+     #edge.width=4*weight^2,vertex.frame.color=NA,margin= rep(0, 6),vertex.label=NA)
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/T_species_subnet2_10Desulfovibrio_piger.pdf")
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/T_species_subnet2_25Treponema_bryantii.pdf")
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/T_species_subnet2_16Maritalea_myrionectae.pdf")
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/T_species_subnet2_13Flavonifractor_plautii.pdf")
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/S_species_subnet4_0Acidaminococcus_fermentans.pdf")
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/S_species_subnet4_8Gallicola_barnesae.pdf")
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/S_species_subnet4_5Pelagibius_litoralis.pdf")
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/B_species_subnet3_12Mucispirillum_schaedleri.pdf")
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/B_species_subnet3_5Chryseolinea_serpens.pdf")
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/B_species_subnet3_4Bilophila_wadsworthia.pdf")
+
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/GCF_species_subnet3_12Facklamia_tabacinasalis.pdf")
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/GCF_species_subnet3_21Plesiomonas_shigelloides.pdf")
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/GCF_species_subnet3_29Sutterella_parvirubra.pdf")
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/GCF_species_subnet3_17Mycoplasma_sualvi.pdf")
+#pdf("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/GCF_species_subnet3_11Eubacterium_siraeum.pdf")
+#("G:/????F/κ??ʦ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/GCF_species_subnet3_28Streptococcus_hyointestinalis.pdf")
+
+#pdf("G:/????F/??ǻ?ಿλ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/P_species_subnet1_7Gallicola_barnesae.pdf")
+#pdf("G:/????F/??ǻ?ಿλ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/P_species_subnet1_21Sphingopyxis_contaminans.pdf")
+#pdf("G:/????F/??ǻ?ಿλ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/P_species_subnet1_3Clostridium_huakuii.pdf")
+#pdf("G:/????F/??ǻ?ಿλ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/P_species_subnet1_16Paludibaculum_fermentans.pdf")
+pdf("G:/????F/??ǻ?ಿλ??Ŀ/??ǻ?ಿλ?Ƚ?/results_community_partition/picture_community_partition2/P_species_subnet1_1Aquicella_siphonis.pdf")
+
+
+par(mar=c(0,0,0,0))
+plot(hub, vertex.size=size*6,vertex.color= V(hub)$color,
+     vertex.shape=myshape, edge.width=3*weight^2,margin= rep(0, 6),layout=layout_in_circle)
+dev.off()
+
+
+
+
+# plot(subgraph.edges(g2, e, delete.vertices = TRUE),layout=layout_in_circle)
+# plot(g, vertex.size=size*2,vertex.label=V(g)$label,vertex.color= V(g2)$color,
+#      vertex.shape=myshape, edge.width=3*weight^2,margin= rep(0, 6))
+#
+# write.table(node_list, 'node_list.txt', sep = '\t', row.names = FALSE, quote = FALSE)
+
+
+#??????????ϵ??
+transitivity(g2)
+#???????ܶ?
+graph.density(g2)
+#??ģ?黯??��ֵ
+modularity(sub2)
+modularity(sub3)
+modularity(sub4)
+modularity(sub5)
+modularity(sub6)
+modularity(sub7)

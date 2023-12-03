@@ -1,0 +1,52 @@
+install.packages("devtools")
+library(devtools)
+
+install.packages("roxygen2")
+library(roxygen2)
+
+#激活R文件夹内的所有函数，供测试使用
+devtools::load_all()
+#为所有函数在man文件夹(如果没有，会创建)下逐一自动建立Rd文档，以及更新NAMESPCAE文档
+devtools::document()
+# 如果没有依赖到别的具有不同版权的第三方包的话，一般选择最为广泛使用的 MIT 即可
+usethis::use_mit_license()
+#在R包不断完善的过程中，可以随时check一下，保证之前的修改没有什么问题
+devtools::check()
+
+##data
+phylum<-read.table("G:/工作F/口腔多部位项目/口腔多部位比较/Rpackage/testdata/phylum_species.txt",header = T)
+usethis::use_data(phylum)
+community=read.table(file="G:/工作F/口腔多部位项目/口腔多部位比较/Rpackage/testdata/tax_L7.txt", header=TRUE)
+community=community[,c(1,170:190)]
+usethis::use_data(community)
+library(readxl)
+df1_node <- read_excel("G:/工作F/口腔多部位项目/口腔多部位比较/Rpackage/testdata/node_T_species_subnetwork2.xlsx")
+usethis::use_data(df1_node)
+df1_net <- read_excel("G:/工作F/口腔多部位项目/口腔多部位比较/Rpackage/testdata/igraph_character_T.xlsx")
+usethis::use_data(df1_net)
+#储存为原始文件的形式（例如.csv，.xlsx等）
+dir.create("inst/extdata", recursive = T)
+write.csv(community, file = "inst/extdata/community.csv")
+write.csv(phylum, file = "inst/extdata/phylum.csv")
+write.csv(df1_node, file = "inst/extdata/df1_node.csv")
+write.csv(df1_net, file = "inst/extdata/df1_net.csv")
+#先document()、check()一下；重新安装，加载
+devtools::document()
+devtools::check()
+
+#调用数据
+library('NetClass')
+data(phylum)
+
+devtools::install_github("yihuaWWW/NetClass1.0.0")
+#写说明书
+usethis::use_vignette("Tutorial")#新建文件夹
+
+devtools::build_vignettes()
+devtools::build_manual(pkg = ".", path = './doc')
+devtools::build(vignettes = TRUE, manual = TRUE)
+
+
+#example
+library('NetClass')
+
